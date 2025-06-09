@@ -1,259 +1,306 @@
-from random import random, randint
+
 from matplotlib import pyplot as plt
+import cv2 as cv
 import numpy as np
-from math import log
+from statistics import median
+import math
+from google.colab.patches import cv2_imshow
 
 
-def gen_delta(a, b, n, cog=1):
-    delt = [a]
-    d = (b-a)/n
-    if cog == 1:
-        for i in range(1, n+1):
-            delt.append(a+i*d)
-    else:
-        p = a
-        dt = 0        
-        for i in range(1, n):
-            x = d/3 * random() * randint(-1, 1)
-            delt.append(p + x + d)
-            p += x + d
-            dt += x
-        delt.append(b)
-    return delt
+immg = cv.imread('хач.jpg')
+r = []
+g = []
+b = []
+rg = []
+gb = []
+rb = []
+gray = []
+for i in immg:
+    r_n = []
+    g_n = []
+    b_n = []
+
+    rg_n = []
+    gb_n = []
+    rb_n = []
+    gray_n = []
+    for j in i:
+        r_n.append([0, 0, j[2]])
+        g_n.append([0, j[1], 0])
+        b_n.append([j[0], 0, 0])
+        rg_n.append([0, j[1], j[2]])
+        gb_n.append([j[0], j[1], 0])
+        rb_n.append([j[0], 0, j[2]])
+        gray_n.append((round(0.2989*j[2]+0.5870*j[1]+0.1140*j[0])))
+    r.append(r_n)
+    g.append(g_n)
+    b.append(b_n)
+    rg.append(rg_n)
+    gb.append(gb_n)
+    rb.append(rb_n)
+    gray.append(gray_n)
 
 
-#прямоугольник левая
-plt.suptitle('Метод прямоугольников, левая граница', fontsize=15)
-for i, n in enumerate([4, 8, 16]):
-    plt.subplot(2, 2, 1+i)
-    plt.minorticks_on()
-    plt.grid(visible=True, axis='both', which='major')
-    plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-    plt.title(f'n={n}')
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        x = np.array([data[i], data[i+1]])
-        f = 2**data[i]
-        y1 = [f, f]
-        y2 = 0
-        plt.fill_between(x, y1, y2)
-    plt.plot(np.linspace(0, 1, 100), 2**np.linspace(0, 1, 100), color='red')
+r = np.array(r)
+g = np.array(g)
+b = np.array(b)
+rg = np.array(rg)
+gb = np.array(gb)
+rb = np.array(rb)
+gray = np.array(gray)
+
+r, g, b = r.astype(np.uint8), g.astype(np.uint8), b.astype(np.uint8)
+rg, gb, rb = rg.astype(np.uint8), gb.astype(np.uint8), rb.astype(np.uint8)
+gray = gray.astype(np.uint8)
+
+cv2_imshow(immg)
+cv.waitKey(0)
+cv2_imshow(r)
+cv.waitKey(0)
+cv2_imshow(g)
+cv.waitKey(0)
+cv2_imshow(b)
+cv.waitKey(0)
+cv2_imshow(rg)
+cv.waitKey(0)
+cv2_imshow(gb)
+cv.waitKey(0)
+cv2_imshow(rb)
+cv.waitKey(0)
+cv2_imshow(gray)
+cv.waitKey(0)
+
+
+def dopoln(s, img):
+    s-=1
+    data = img.tolist()
+    left_up = []
+    right_up = []
+    left_down = []
+    right_down = []
+    left_line = []
+    right_line =[]
+    res = []
+    for i in range(s):
+        left_up.append([data[s-i][s-j] for j in range(s)])
+        right_up.append([data[s-i][-(j+1)] for j in range(s)])
+        left_down.append([data[-(i+1)][s-j] for j in range(s)])
+        right_down.append([data[-(i+1)][-(j+1)] for j in range(s)])
+    for i in data:
+        left_line.append([i[s-j] for j in range(s)])
+        right_line.append([i[-(j+1)] for j in range(s)])
+    for i in range(s):
+        r = []
+        r.extend(left_up[i])
+        r.extend(data[s-i])
+        r.extend(right_up[i])
+        res.append(r)
+    for i in range(len(data[0])):
+        r = []
+        r.extend(left_line[i])
+        r.extend(data[i])
+        r.extend(right_line[i])
+        res.append(r)
+    for i in range(s):
+        r = []
+        r.extend(left_down[i])
+        r.extend(data[-(i+1)])
+        r.extend(right_down[i])
+        res.append(r)
+    res = np.array(res)
+    res = res.astype(np.uint8)
+    return res
+
+def Sobel(img):
+    res = []
+    for i in range(1, len(img)-3+1):
+        st = np.array([[1], [2], [1]])
+        str = np.array([[1, 0, -1]])
+        r=[]
+        for j in range(1, len(img)-3+1):
+            d = np.array([[img[i-1][j-1], img[i-1][j], img[i-1][j+1]], [img[i][j-1], img[i][j], img[i][j+1]], [img[i+1][j-1], img[i+1][j], img[i+1][j+1]]])
+            r.append(round(((sum(sum(str.T*st.T*d))**2)+ (sum(sum(st*str*d))**2))**0.5))
+        res.append(r)
+    res = np.array(res)
+    res = res.astype(np.uint8)
+    return res
+
+def Porog(img, lim):
+    res = []
+    img = img.tolist()
+    for i in range(len(img)):
+        r = []
+        for j in range(len(img[0])):
+            if img[i][j] < lim:
+                r.append(0)
+            else:
+                r.append(255)
+        res.append(r)
+    res = np.array(res)
+    res = res.astype(np.uint8)
+    return res
+
+def Median(img, s):
+    res = []
+    for i in range(len(img)-s):
+        r = []
+        for j in range(len(img[0])-s):
+            m=[]
+            for k in range(s):
+                for l in range(s):
+                    m.append(img[l+i][k+j])
+            r.append(round(median(m)))
+        res.append(r)
+    res = np.array(res)
+    res = res.astype(np.uint8)
+    return res
+
+def Gaus(img, s, sigma):
+    res = []
+    for i in range(s, len(img)-s):
+        r = []
+        for j in range(s, len(img[0])-s):
+            m = []
+            for k in range(-s, s+1):
+                for l in range(-s, s+1):
+                    m.append(round(int(img[k+i][l+j])* 1/(2*3.14*sigma**2)*2.718**(-1/2*((k**2+l**2)/sigma**2))))
+            r.append(sum(m))
+        res.append(r)
+    res = np.array(res)
+    res = res.astype(np.uint8)
+    return res
+
+def BoxBlur(img, s):
+    res = []
+    for i in range(s, len(img)-s):
+        r = []
+        for j in range(s, len(img[0])-s):
+            m = []
+            for k in range(-s, s+1):
+                for l in range(-s, s+1):
+                    m.append(int(img[k+i][l+j]))
+            r.append(sum(m)/((2*s+1)**2))
+        res.append(r)
+    res = np.array(res)
+    res = res.astype(np.uint8)
+    return res
+
+cv2_imshow(Porog(gray, 140))
+cv.waitKey(0)
+
+cv2_imshow(Median(dopoln(3, gray), 3))
+cv.waitKey(0)
+
+cv2_imshow(Gaus(dopoln(2, gray), 2, 0.727))
+cv.waitKey(0)
+
+cv2_imshow(BoxBlur(dopoln(2, gray), 2))
+cv.waitKey(0)
+
+cv2_imshow(Sobel(dopoln(3, gray)))
+cv.waitKey(0)
+
+cv2_imshow(dopoln(100, gray))
+cv.waitKey(0)
+
+
+
+
+
+def fft_1d(x):
+    n = len(x)
+    if n == 1:
+        return x
+    chet = fft_1d(x[::2])
+    nechet = fft_1d(x[1::2])
+    W = np.exp(-2j * np.pi * np.arange(n//2) / n)
+    return np.concatenate([chet + W * nechet, chet - W * nechet])
+
+def ifft_1d(x):
+    n = len(x)
+    if n == 1:
+        return x
+
+    chet = ifft_1d(x[::2])
+    nechet = ifft_1d(x[1::2])
+    W = np.exp(2j * np.pi * np.arange(n//2) / n)
+    return np.concatenate([chet + W * nechet, chet - W * nechet])
+
+def fft_2d(img):
+    n, m = img.shape
+    fft_rows = np.zeros((n, m), dtype=complex)
+    for i in range(n):
+        fft_rows[i, :] = fft_1d(img[i, :])
+
+    fft_result = np.zeros((n, m), dtype=complex)
+    for j in range(m):
+        fft_result[:, j] = fft_1d(fft_rows[:, j])
+
+    return fft_result
+
+def ifft_2d(fft_img):
+    n, m = fft_img.shape
+    ifft_cols = np.zeros((n, m), dtype=complex)
+    for j in range(m):
+        ifft_cols[:, j] = ifft_1d(fft_img[:, j])
+
+    img = np.zeros((n, m), dtype=complex)
+    for i in range(n):
+        img[i, :] = ifft_1d(ifft_cols[i, :])
+
+    return img.real / (n * m)
+
+def pad_fft(fft_coeffs, new_size):
+    n, m = fft_coeffs.shape
+    new_n, new_m = new_size
+
+    padded = np.zeros(new_size, dtype=complex)
+    half_n = n // 2
+    half_m = m // 2
+
+    padded[:half_n, :half_m] = fft_coeffs[:half_n, :half_m]
+    padded[:half_n, new_m-half_m:] = fft_coeffs[:half_n, half_m:]
+    padded[new_n-half_n:, :half_m] = fft_coeffs[half_n:, :half_m]
+    padded[new_n-half_n:, new_m-half_m:] = fft_coeffs[half_n:, half_m:]
+
+    return padded
+
+def gibbs_suppression(fft_coeffs, alpha=0.1, t=0.1):
+    n, m = fft_coeffs.shape
+    suppressed = np.zeros_like(fft_coeffs)
+
+    for k in range(n):
+        for l in range(m):
+            lambda_kl = (np.pi * k / n)**2 + (np.pi * l / m)**2
+            suppressed[k, l] = fft_coeffs[k, l] * np.exp(-alpha * lambda_kl * t)
+
+    return suppressed
+
+def fourier_upscale(img, scale_factor=2):
+    img_array = np.array(img)
+    h, w = img_array.shape
+    fft_coeffs = fft_2d(img_array)
+    suppressed = gibbs_suppression(fft_coeffs, alpha=0.0014, t=7)
+    new_size = (int(h * scale_factor), int(w * scale_factor))
+    padded = pad_fft(suppressed, new_size)
+    padded *= (scale_factor ** 2)
+    upscaled = ifft_2d(padded)
+    upscaled = np.clip(upscaled, 0, 255).astype(np.uint8)
+    return upscaled
+
+result = fourier_upscale(gray, scale_factor=2)
+cv2_imshow(result)
+cv.waitKey(0)
+
+
+plt.title('20 строка')
+plt.plot(r[20].T[2], color='red')
+plt.plot(g[20].T[1], color='green')
+plt.plot(b[20].T[0], color='blue')
 plt.show()
 
-
-#прямоугольник правая
-plt.suptitle('Метод прямоугольников, правая граница', fontsize=15)
-for i, n in enumerate([4, 8, 16]):
-    plt.subplot(2, 2, 1+i)
-    plt.minorticks_on()
-    plt.grid(visible=True, axis='both', which='major')
-    plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-    plt.title(f'n={n}')
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        x = np.array([data[i], data[i+1]])
-        f = 2**data[i+1]
-        y1 = [f, f]
-        y2 = 0
-        plt.fill_between(x, y1, y2)
-    plt.plot(np.linspace(0, 1, 100), 2**np.linspace(0, 1, 100), color='red')
-plt.show()
-
-#прямоугольник середина
-plt.suptitle('Метод прямоугольников, середина', fontsize=15)
-for i, n in enumerate([4, 8, 16]):
-    plt.subplot(2, 2, 1+i)
-    plt.minorticks_on()
-    plt.grid(visible=True, axis='both', which='major')
-    plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-    plt.title(f'n={n}')
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        x = np.array([data[i], data[i+1]])
-        f = 2**((data[i]+data[i+1])/2)
-        y1 = [f, f]
-        y2 = 0
-        plt.fill_between(x, y1, y2)
-    plt.plot(np.linspace(0, 1, 100), 2**np.linspace(0, 1, 100), color='red')
-plt.show()
-
-
-#прямоугольник случайная
-plt.suptitle('Метод прямоугольников, случайная граница', fontsize=15)
-for i, n in enumerate([4, 8, 16]):
-    plt.subplot(2, 2, 1+i)
-    plt.minorticks_on()
-    plt.grid(visible=True, axis='both', which='major')
-    plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-    plt.title(f'n={n}')
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        x = np.array([data[i], data[i+1]])
-        f = 2**(data[i]+random()*(data[i+1]-data[i]))
-        y1 = [f, f]
-        y2 = 0
-        plt.fill_between(x, y1, y2)
-    plt.plot(np.linspace(0, 1, 100), 2**np.linspace(0, 1, 100), color='red')
-plt.show()
-
-
-#трапеция
-plt.suptitle('Метод трапеций', fontsize=15)
-for i, n in enumerate([4, 8, 16]):
-    plt.subplot(2, 2, 1+i)
-    plt.minorticks_on()
-    plt.grid(visible=True, axis='both', which='major')
-    plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-    plt.title(f'n={n}')
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        x = np.array([data[i], data[i+1]])
-        y1 = [2**data[i], 2**data[i+1]]
-        y2 = 0
-        plt.fill_between(x, y1, y2)
-    plt.plot(np.linspace(0, 1, 100), 2**np.linspace(0, 1, 100), color='red')
-plt.show()
-
-
-
-#Симпсон
-plt.suptitle('Метод Симпсона', fontsize=15)
-for i, n in enumerate([4, 8, 16]):
-    plt.subplot(2, 2, 1+i)
-    plt.minorticks_on()
-    plt.grid(visible=True, axis='both', which='major')
-    plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-    plt.title(f'n={n}')
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(0, len(data)-2, 2):
-        poly = np.polyfit([data[i], data[i+1], data[i+2]], [2**data[i], 2**data[i+1], 2**data[i+2]], 2)
-        x = np.linspace(data[i], data[i+2], num=100)
-        y1 = poly[0]*x**2 + poly[1]*x + poly[2]
-        y2 = 0
-        plt.fill_between(x, y1, y2)
-    plt.plot(np.linspace(0, 1, 100), 2**np.linspace(0, 1, 100), color='red')
-plt.show()
-
-
-
-I = 2**1/log(2)-2**0/log(2)
-
-plt.suptitle('Графики зависимости отклонения от n', fontsize=15)
-#прямоугольник левая
-
-plt.subplot(2, 3, 1)
-plt.minorticks_on()
-plt.grid(visible=True, axis='both', which='major')
-plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-plt.title(f'прямоугольник левая')
-
-print('Площади для метода прямоугольника, где \ksi - левая граница')
-d = []
-for i, n in enumerate([1, 2, 4, 8, 16, 32, 64, 128]):
-    S = 0
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        S += (data[i+1] - data[i])*2**data[i]
-    d.append(abs(I-S))
-    print(f'S({n}) = {S}')
-plt.plot([1, 2, 4, 8, 16, 32, 64, 128], d)
-
-# #прямоугольник правая
-
-plt.subplot(2, 3, 2)
-plt.minorticks_on()
-plt.grid(visible=True, axis='both', which='major')
-plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-plt.title(f'прямоугольник правая')
-
-print('Площади для метода прямоугольника, где \ksi - правая граница')
-d = []
-for i, n in enumerate([1, 2, 4, 8, 16, 32, 64, 128]):
-    S = 0
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        S += (data[i+1] - data[i])*2**data[i+1]
-    d.append(abs(I-S))
-    print(f'S({n}) = {S}')
-plt.plot([1, 2, 4, 8, 16, 32, 64, 128], d)
-
-# #прямоугольник середина
-
-plt.subplot(2, 3, 3)
-plt.minorticks_on()
-plt.grid(visible=True, axis='both', which='major')
-plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-plt.title(f'прямоугольник середина')
-
-print('Площади для метода прямоугольника, где \ksi - середина')
-d = []
-for i, n in enumerate([1, 2, 4, 8, 16, 32, 64, 128]):
-    S = 0
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        S += (data[i+1] - data[i])*2**((data[i] + data[i+1])/2)
-    d.append(abs(I-S))
-    print(f'S({n}) = {S}')
-plt.plot([1, 2, 4, 8, 16, 32, 64, 128], d)
-
-# #прямоугольник случайная
-
-plt.subplot(2, 3, 4)
-plt.minorticks_on()
-plt.grid(visible=True, axis='both', which='major')
-plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-plt.title(f'прямоугольник случайная')
-
-print('Площади для метода прямоугольника, где \ksi - случайное')
-d = []
-for i, n in enumerate([1, 2, 4, 8, 16, 32, 64, 128]):
-    S = 0
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        S += (data[i+1] - data[i])*2**(random()*(data[i+1]-data[i])+data[i])
-    d.append(abs(I-S))
-    print(f'S({n}) = {S}')
-plt.plot([1, 2, 4, 8, 16, 32, 64, 128], d)
-
-
-# #трапеция
-
-plt.subplot(2, 3, 5)
-plt.minorticks_on()
-plt.grid(visible=True, axis='both', which='major')
-plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-plt.title(f'трапеция')
-
-print('Площади для метода трапеции')
-d = []
-for i, n in enumerate([1, 2, 4, 8, 16, 32, 64, 128]):
-    S = 0
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        S += (2**data[i] + 2**data[i+1])*(data[i+1]-data[i])/2
-    d.append(abs(I-S))
-    print(f'S({n}) = {S}')
-plt.plot([1, 2, 4, 8, 16, 32, 64, 128], d)
-
-
-
-# #Симпсон
-
-plt.subplot(2, 3, 6)
-plt.minorticks_on()
-plt.grid(visible=True, axis='both', which='major')
-plt.grid(visible=True, axis='both', which='minor', alpha=0.2)
-plt.title(f'Метод Симпсона')
-
-print('Площади для метода Симпсона')
-d = []
-for i, n in enumerate([1, 2, 4, 8, 16, 32, 64, 128]):
-    S = 0
-    data = gen_delta(0, 1, n, cog=1).copy()
-    for i in range(len(data)-1):
-        S += (2**data[i] + 2**data[i+1] + 4*2**((data[i]+data[i+1])/2))*(data[i+1]-data[i])/6
-    d.append(abs(I-S))
-    print(f'S({n}) = {S}')
-plt.plot([1, 2, 4, 8, 16, 32, 64, 128], d)
-
+plt.title('200 строка')
+plt.plot(r[200].T[2], color='red')
+plt.plot(g[200].T[1], color='green')
+plt.plot(b[200].T[0], color='blue')
 plt.show()
